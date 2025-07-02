@@ -106,6 +106,9 @@ const Home = () => {
     (acc, order) => acc + Number(order.total || 0),
     0
   );
+  const filteredOrders = [...orders].filter(
+    (o) => o.customer && o.total && o.date
+  );
 
   return (
     <div className="main-container h-[calc(100vh-80px)] w-full px-8 pt-3 flex flex-col">
@@ -127,42 +130,51 @@ const Home = () => {
                 </tr>
               </thead>
               <tbody>
-                {[...orders]
-                  .filter((o) => o.customer && o.total && o.date)
-                  .sort((a, b) => new Date(a.date) - new Date(b.date))
-                  .map((order, index) => (
-                    <tr
-                      key={order.id}
-                      onClick={() => setViewOrder(order)}
-                      className="cursor-pointer hover:bg-gray-100 transition-all"
-                    >
-                      <td className="p-4">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 mb-[2px]"
-                            checked={selectOrders.includes(order.id)}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              toggleOrder(order.id);
-                            }}
-                          />
-                          #{index + 1}
-                        </label>
-                      </td>
-                      <td className="p-4">{order.customer}</td>
-                      <td className="p-4">{order.type}</td>
-                      <td className="p-4">{order.status}</td>
-                      <td className="p-4">${Number(order.total).toFixed(2)}</td>
-                      <td className="p-4">
-                        {new Date(order.date).toLocaleDateString("en-GB", {
-                          day: "2-digit",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </td>
-                    </tr>
-                  ))}
+                {filteredOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center text-gray-400 py-8">
+                      No orders found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrders
+                    .sort((a, b) => new Date(a.date) - new Date(b.date))
+                    .map((order, index) => (
+                      <tr
+                        key={order.id}
+                        onClick={() => setViewOrder(order)}
+                        className="cursor-pointer hover:bg-gray-100 transition-all"
+                      >
+                        <td className="p-4">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 mb-[2px]"
+                              checked={selectOrders.includes(order.id)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                toggleOrder(order.id);
+                              }}
+                            />
+                            #{index + 1}
+                          </label>
+                        </td>
+                        <td className="p-4">{order.customer}</td>
+                        <td className="p-4">{order.type}</td>
+                        <td className="p-4">{order.status}</td>
+                        <td className="p-4">
+                          ${Number(order.total).toFixed(2)}
+                        </td>
+                        <td className="p-4">
+                          {new Date(order.date).toLocaleDateString("en-GB", {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </td>
+                      </tr>
+                    ))
+                )}
               </tbody>
             </table>
           </div>
