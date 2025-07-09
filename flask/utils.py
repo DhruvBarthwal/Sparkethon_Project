@@ -1,29 +1,25 @@
 def generate_output(row, box_encoder, classifier, regressor):
-    # Feature engineering: calculate volumes, areas, and ratios
-    item_volume = row['Item_L'] * row['Item_W'] * row['Item_H']
-    bin_volume = row['Bin_L'] * row['Bin_W'] * row['Bin_H']
-    volume_ratio = item_volume / bin_volume if bin_volume != 0 else 0
-
-    item_area = 2 * (row['Item_L'] * row['Item_W'] + row['Item_W'] * row['Item_H'] + row['Item_H'] * row['Item_L'])
-    bin_area = 2 * (row['Bin_L'] * row['Bin_W'] + row['Bin_W'] * row['Bin_H'] + row['Bin_H'] * row['Bin_L'])
-    area_ratio = item_area / bin_area if bin_area != 0 else 0
-
-    # Create a 12-feature input vector for both classifier and regressor
-    features = [[
+    # Predict box category from bin dimensions
+    # Build the correct feature list (adjust according to your model's training data)
+    # Prepare features for both classifier and regressor
+    features = [
         row['Item_L'], row['Item_W'], row['Item_H'],
         row['Bin_L'], row['Bin_W'], row['Bin_H'],
-        item_volume, bin_volume, volume_ratio,
-        item_area, bin_area, area_ratio
-    ]]
+        row.get('Item_Weight', 0),
+        row.get('Item_Volume', row['Item_L'] * row['Item_W'] * row['Item_H']),
+        row.get('Box_Volume', row['Bin_L'] * row['Bin_W'] * row['Bin_H']),
+        row.get('Weather_encoded', 0),
+        row.get('Fragile_Flag', 0),
+        row.get('Urgent_Flag', 0)
+    ]
 
-    # Predict box category
-    box_category_encoded = classifier.predict(features)[0]
+    box_category_encoded = classifier.predict([features])[0]
     box_category = box_encoder.inverse_transform([box_category_encoded])[0]
 
-    # Predict filler amount
-    filler_amount = round(regressor.predict(features)[0], 2)
+    filler_amount = round(regressor.predict([features])[0], 2)
 
-    # Determine packaging type
+
+    # Determine packaging type dynamically
     packaging_type = "Recycled cardboard box" if box_category in ["Small", "Medium", "Large"] else "Reusable fabric wrap"
 
     # Filler type logic
@@ -34,16 +30,16 @@ def generate_output(row, box_encoder, classifier, regressor):
     else:
         filler_type = "Biodegradable peanuts"
 
-    # Environmental impact
+    # Environmental Impact (basic linear relationship for example)
     plastic_saved = round(max(0.0, (1.0 - filler_amount) * 0.025), 3)
     co2_saved = round(max(0.0, (1.0 - filler_amount) * 0.15), 3)
 
-    # Cost savings
+    # Cost savings (dynamic: assume base cost = $1.0 and filler increases cost)
     base_cost = 1.0
-    filler_penalty = min(filler_amount * 0.3, 0.9)
+    filler_penalty = min(filler_amount * 0.3, 0.9)  # cap penalty
     cost_savings = round(base_cost - filler_penalty, 2)
 
-    # Fit status
+    # Fit status logic
     if filler_amount <= 0.1:
         fit_status = "Perfect Fit"
     elif filler_amount <= 0.5:
@@ -51,15 +47,18 @@ def generate_output(row, box_encoder, classifier, regressor):
     else:
         fit_status = "No Fit"
 
-    # Arrangement suggestion
+    # Arrangement advice
     arrangement = "Good arrangement" if fit_status == "Perfect Fit" else (
         "Try repositioning item" if fit_status == "Acceptable Fit" else "Check orientation or larger bin"
     )
 
-    # Eco material suggestion
-    eco_swap = "Try mushroom-based wrap for 10% more savings" if filler_type != "No filler needed" else "No alternative filler needed"
+    # Eco swap logic
+    if filler_type != "No filler needed":
+        eco_swap = "Try mushroom-based wrap for 10% more savings"
+    else:
+        eco_swap = "No alternative filler needed"
 
-    # Anomaly detection
+    # Anomaly detection and suggestion
     anomaly = "Anomaly" if filler_amount > 1.0 else "Normal"
     fix = "Re-check packing config" if anomaly == "Anomaly" else "None needed"
 

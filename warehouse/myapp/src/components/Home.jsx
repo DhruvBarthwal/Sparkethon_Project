@@ -21,6 +21,9 @@ const Home = () => {
   const [previewMode, setPreviewMode] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [mlResponse, setMlResponse] = useState(null);
+
+  
   const navigate = useNavigate();
 
   const [importedStats, setImportedStats] = useState(() => ({
@@ -31,7 +34,7 @@ const Home = () => {
     pending: Number(localStorage.getItem("importedPendingOrders")) || 0,
   }));
 
- const handleGoToBoxDisplay = () => {
+  const handleGoToBoxDisplay = () => {
     setIsGenerating(true);
     setTimeout(() => {
       const items = viewOrder?.items || [];
@@ -82,10 +85,19 @@ const Home = () => {
   const handleImport = async () => {
     const imported = orders.filter((o) => selectOrders.includes(o.id));
     const total = imported.length;
-    const paid = imported.filter((o) => o.status?.toLowerCase() === "paid").length;
-    const cancelled = imported.filter((o) => o.status?.toLowerCase() === "cancelled").length;
-    const pending = imported.filter((o) => o.status?.toLowerCase() === "pending").length;
-    const revenue = imported.reduce((acc, curr) => acc + Number(curr.total || 0), 0);
+    const paid = imported.filter(
+      (o) => o.status?.toLowerCase() === "paid"
+    ).length;
+    const cancelled = imported.filter(
+      (o) => o.status?.toLowerCase() === "cancelled"
+    ).length;
+    const pending = imported.filter(
+      (o) => o.status?.toLowerCase() === "pending"
+    ).length;
+    const revenue = imported.reduce(
+      (acc, curr) => acc + Number(curr.total || 0),
+      0
+    );
 
     const newStats = {
       total: importedStats.total + total,
@@ -137,13 +149,40 @@ const Home = () => {
 
     setSelectOrders([]);
   };
-
-  const handlePreviewPackaging = () => {
+  const handlePreviewPackaging = async () => {
     setLoadingPreview(true);
+    setMlResponse(null); // Reset previous response
+
+    try {
+      const items = viewOrder?.items || [];
+
+      const formattedItems = items.map((item) => ({
+        width: item.width || 10,
+        height: item.height || 10,
+        depth: item.depth || 10,
+        weight: item.weight || 1,
+      }));
+
+      const response = await fetch("http://127.0.0.1:5000/predict", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ items: formattedItems }),
+      });
+
+      const data = await response.json();
+      console.log("ML Model Response:", data);
+      setMlResponse(data);
+    } catch (error) {
+      console.error("Error calling ML model:", error);
+      setMlResponse({ error: "Unable to fetch recommendation." });
+    }
+
     setTimeout(() => {
       setLoadingPreview(false);
       setPreviewMode(true);
-    },8000); // 2s delay
+    }, 3000); // You can reduce delay here
   };
 
   return (
@@ -153,11 +192,12 @@ const Home = () => {
         <div>
           <h2 className="text-2xl font-bold mb-8">WalMart</h2>
           <nav className="space-y-3">
-            {[{ label: "Dashboard", icon: <HomeIcon /> },
+            {[
+              { label: "Dashboard", icon: <HomeIcon /> },
               { label: "Orders", icon: <ClipboardList /> },
               { label: "Notifications", icon: <Bell /> },
               { label: "Help", icon: <HelpCircle /> },
-              { label: "About", icon: <Info /> }
+              { label: "About", icon: <Info /> },
             ].map((item, idx) => (
               <div
                 key={idx}
@@ -178,10 +218,16 @@ const Home = () => {
       {/* Main Area */}
       <div className="flex-1 flex h-full">
         {/* Orders Table */}
-        <div className={`${viewOrder ? "w-2/3" : "w-full"} bg-[#F4F3EC] rounded-none shadow px-6 py-23 flex flex-col transition-all duration-300 h-full`}>
+        <div
+          className={`${
+            viewOrder ? "w-2/3" : "w-full"
+          } bg-[#F4F3EC] rounded-none shadow px-6 py-23 flex flex-col transition-all duration-300 h-full`}
+        >
           <h1 className="text-[40px] mb-3">Orders</h1>
           {orders.length > 0 && (
-            <p className="text-green-600 text-sm mb-2">Found {orders.length} orders</p>
+            <p className="text-green-600 text-sm mb-2">
+              Found {orders.length} orders
+            </p>
           )}
           <div className="flex-1 overflow-y-auto">
             <table className="min-w-full text-[14px]">
@@ -198,11 +244,16 @@ const Home = () => {
               <tbody>
                 {orders.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="text-center text-gray-400 py-8">No orders found</td>
+                    <td colSpan="6" className="text-center text-gray-400 py-8">
+                      No orders found
+                    </td>
                   </tr>
                 ) : (
                   orders.map((order, index) => (
-                    <tr key={order.id} className="hover:bg-gray-100 transition-all">
+                    <tr
+                      key={order.id}
+                      className="hover:bg-gray-100 transition-all"
+                    >
                       <td className="p-4">
                         <label className="flex items-center gap-2">
                           <input
@@ -277,10 +328,18 @@ const Home = () => {
         {/* Right Panel - Order Details */}
         {viewOrder && !previewMode && !loadingPreview && (
           <div className="w-1/3 h-full bg-white p-6 shadow overflow-y-auto relative">
-            <button className="absolute top-3 right-4 text-gray-600 hover:text-red-600 cursor-pointer text-2xl font-bold" onClick={() => setViewOrder(null)}>&times;</button>
-            <h2 className="text-lg font-semibold mb-1">Order #{viewOrder.index}</h2>
+            <button
+              className="absolute top-3 right-4 text-gray-600 hover:text-red-600 cursor-pointer text-2xl font-bold"
+              onClick={() => setViewOrder(null)}
+            >
+              &times;
+            </button>
+            <h2 className="text-lg font-semibold mb-1">
+              Order #{viewOrder.index}
+            </h2>
             <p className="inline-block px-3 py-1 bg-red-500 text-white text-sm rounded-full font-semibold mb-4">
-              {viewOrder.status?.charAt(0).toUpperCase() + viewOrder.status?.slice(1)}
+              {viewOrder.status?.charAt(0).toUpperCase() +
+                viewOrder.status?.slice(1)}
             </p>
             <div className="flex flex-col items-center mb-6">
               {viewOrder.customerImage && (
@@ -290,24 +349,44 @@ const Home = () => {
                   className="w-20 h-20 rounded-full object-cover mb-2"
                 />
               )}
-              <p className="font-semibold text-lg text-center">{viewOrder.customer}</p>
+              <p className="font-semibold text-lg text-center">
+                {viewOrder.customer}
+              </p>
             </div>
             <div className="bg-gray-50 p-4 rounded-lg shadow-sm mb-6 text-sm space-y-2">
-              <p><strong>Payment:</strong> {viewOrder.paymentMethod}</p>
-              <p><strong>Address:</strong> {viewOrder.address}</p>
-              <p><strong>Order Type:</strong> {viewOrder.type}</p>
-              <p><strong>Date:</strong> {new Date(viewOrder.date).toLocaleString()}</p>
+              <p>
+                <strong>Payment:</strong> {viewOrder.paymentMethod}
+              </p>
+              <p>
+                <strong>Address:</strong> {viewOrder.address}
+              </p>
+              <p>
+                <strong>Order Type:</strong> {viewOrder.type}
+              </p>
+              <p>
+                <strong>Date:</strong>{" "}
+                {new Date(viewOrder.date).toLocaleString()}
+              </p>
             </div>
             <div className="mb-6">
               <h3 className="text-base font-semibold mb-3">Order Items</h3>
               <div className="space-y-3">
                 {viewOrder.items?.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded-lg">
+                  <div
+                    key={index}
+                    className="flex items-center justify-between bg-gray-100 p-2 rounded-lg"
+                  >
                     <div className="flex items-center gap-3">
-                      <img src={item.image} alt={item.name} className="w-10 h-10 rounded object-cover" />
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-10 h-10 rounded object-cover"
+                      />
                       <div>
                         <p className="text-sm font-medium">{item.name}</p>
-                        <p className="text-xs text-gray-600">Qty: {item.quantity}</p>
+                        <p className="text-xs text-gray-600">
+                          Qty: {item.quantity}
+                        </p>
                       </div>
                     </div>
                     <div className="text-sm font-semibold text-gray-800">
@@ -320,7 +399,10 @@ const Home = () => {
                 Total: ${viewOrder.total}
               </div>
             </div>
-            <button className="w-full cursor-pointer bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition" onClick={handlePreviewPackaging}>
+            <button
+              className="w-full cursor-pointer bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition"
+              onClick={handlePreviewPackaging}
+            >
               Preview Packaging
             </button>
           </div>
@@ -332,7 +414,11 @@ const Home = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ repeat: Infinity, repeatType: "reverse", duration: 0.8 }}
+              transition={{
+                repeat: Infinity,
+                repeatType: "reverse",
+                duration: 0.8,
+              }}
               className="text-xl font-semibold text-blue-700"
             >
               Analyzing...
@@ -347,7 +433,7 @@ const Home = () => {
         )}
 
         {/* 3D Preview */}
-       {isGenerating && (
+        {isGenerating && (
           <div className="w-1/3 h-full bg-black flex flex-col items-center justify-center text-white">
             <motion.div
               initial={{ opacity: 0 }}
@@ -407,13 +493,25 @@ const Home = () => {
                 ))}
               </div>
             </div>
-            <div className="text-sm space-y-2 mt-4">
-              <p><strong>Box Size:</strong> 30x30x30 cm</p>
-              <p><strong>Box Category:</strong> Medium</p>
-              <p><strong>Weather Recommendation:</strong> Standard Eco-Packaging is suitable</p>
-              <p><strong>Environmental Impact:</strong> Plastic saved: 0.2kg <br /> <span className="ml-37">CO2 saved: 0.1kg</span></p>
-              <p><strong>Filler Type:</strong> Biodegradable paper</p>
-            </div>
+           <div className="text-sm space-y-2 -mt-10">
+  {mlResponse ? (
+    mlResponse.error ? (
+      <p className="text-red-400">{mlResponse.error}</p>
+    ) : (
+      <>
+        <p><strong>Box Dimensions:</strong> {mlResponse.Box_Dimensions || "N/A"}</p>
+        <p><strong>Box Category:</strong> {mlResponse.Box_Category || "N/A"}</p>
+        <p><strong>Weather Recommendation:</strong> {mlResponse.Weather_Recommendation || "N/A"}</p>
+        <p><strong>Environmental Impact:</strong> Plastic saved: {mlResponse.Environmental_Impact.Plastic_Saved_kg || "0"}kg <br /> <span className="ml-37">CO₂ saved: {mlResponse.Environmental_Impact.CO2_Saved_kg || "0"}kg</span></p>
+        <p><strong>Filler Type:</strong> {mlResponse.Filler_Type || "N/A"}</p>
+        <p><strong>Filler Amount:</strong> {mlResponse.Filler_Amount || "N/A"}</p>
+        <p><strong>Cost Saved(Per unit):</strong> {mlResponse.Cost_Savings_Per_Unit || "N/A"}</p>
+      </>
+    )
+  ) : (
+    <p className="text-gray-400">Fetching ML Recommendations...</p>
+  )}
+</div>
             <button
               className="bg-white cursor-pointer text-black px-4 py-2 rounded hover:bg-gray-200 mt-4"
               onClick={handleGoToBoxDisplay}
@@ -428,6 +526,3 @@ const Home = () => {
 };
 
 export default Home;
-
-
-
