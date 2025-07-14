@@ -1,8 +1,8 @@
 // App.jsx
 import "./App.css";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Home from "./components/Home";
 import BoxDisplay from "./components/BoxDisplay";
+import Homes from "./components/Homes";
 
 function App() {
   return (
@@ -13,7 +13,7 @@ function App() {
 
         <Routes>
           {/* Home Route */}
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Homes />} />
 
           {/* Box Display Route */}
           <Route path="/box-preview" element={<BoxDisplay />} />

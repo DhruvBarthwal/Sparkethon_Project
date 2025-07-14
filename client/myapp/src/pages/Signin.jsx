@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import { auth, provider, db } from "../firebase-config";
-import { createUserWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+} from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import Cookies from "universal-cookie";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +17,7 @@ const Signin = ({ setIsAuth }) => {
   const navigate = useNavigate();
 
   const createUserFirestore = async (user) => {
-    const userRef = doc(db, 'users', user.uid);
+    const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
@@ -26,10 +30,14 @@ const Signin = ({ setIsAuth }) => {
         wishlist: [],
         orderHistory: [],
         preferences: { theme: "light", language: "en" },
-        role: "customer"
+        role: "customer",
       });
     } else {
-      await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
+      await setDoc(
+        userRef,
+        { lastLogin: serverTimestamp() },
+        { merge: true }
+      );
     }
   };
 
@@ -40,7 +48,7 @@ const Signin = ({ setIsAuth }) => {
       cookies.set("auth-token", result.user.refreshToken);
       await createUserFirestore(result.user);
       setIsAuth(true);
-      navigate("/"); 
+      navigate("/");
     } catch (err) {
       console.error(err);
     }
@@ -48,9 +56,14 @@ const Signin = ({ setIsAuth }) => {
 
   const signInWithGoogle = async () => {
     try {
-      const result = await signInWithPopup(auth, provider);
+      const customProvider = new GoogleAuthProvider();
+      customProvider.setCustomParameters({
+        prompt: "select_account", // ✅ Force account chooser
+      });
+
+      const result = await signInWithPopup(auth, customProvider);
       cookies.set("auth-token", result.user.refreshToken);
-      await createUserFirestore(result.user); 
+      await createUserFirestore(result.user);
       setIsAuth(true);
       navigate("/");
     } catch (err) {
@@ -61,7 +74,9 @@ const Signin = ({ setIsAuth }) => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="bg-white shadow-2xl rounded-2xl p-8 max-w-md w-full">
-        <h2 className="text-3xl font-bold text-blue-600 text-center mb-6">Welcome to Walmart</h2>
+        <h2 className="text-3xl font-bold text-blue-600 text-center mb-6">
+          Welcome to Walmart
+        </h2>
 
         <form onSubmit={signIn} className="space-y-4">
           <input

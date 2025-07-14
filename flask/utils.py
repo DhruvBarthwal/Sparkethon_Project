@@ -64,7 +64,7 @@ def generate_output(row, box_encoder, classifier, regressor):
 
     return {
         "Packaging_Type": packaging_type,
-        "Box_Dimensions": f"{row['Bin_L']}x{row['Bin_W']}x{row['Bin_H']}",
+        "Box_Dimensions": f"{row['Bin_L']} x {row['Bin_W']} x {row['Bin_H']}",
         "Box_Category": box_category,
         "Filler_Type": filler_type,
         "Filler_Amount": f"{filler_amount} inch",
